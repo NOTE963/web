@@ -40,7 +40,7 @@
   :focus-visible{ outline:2px solid var(--marquee); outline-offset:3px; }
   @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } }
 
-  .app{ width:100%; max-width:480px; min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; padding: 26px 20px 40px; }
+  .app{ width:100%; max-width:640px; min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; padding: 26px 20px 40px; }
 
   .bulb-row{ display:flex; gap:7px; padding-bottom:18px; }
   .bulb{ width:6px; height:6px; border-radius:50%; background:var(--marquee-dim); }
@@ -67,6 +67,8 @@
   }
   input[type=text]::placeholder{ color:var(--text-muted); }
   input[type=text]:focus{ border-color:var(--marquee); }
+  input[type=text]:disabled{ opacity:.5; }
+  .engine-btn:disabled{ opacity:.4; pointer-events:none; }
 
   .hint{ color:var(--text-muted); font-size:12px; line-height:1.6; margin-top:8px; }
 
@@ -109,6 +111,10 @@
   }
   .ticket .copy-btn:active{ background:var(--line); }
 
+  .host-banner{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:11px 14px; font-size:12.5px; color:var(--text-muted); line-height:1.6; margin-bottom:16px;
+  }
   .participants{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
   .participants .count{ font-size:12px; color:var(--text-muted); margin-right:2px; }
   .chip{
@@ -119,8 +125,9 @@
 
   .screen-wrap{
     background:var(--bg-deep); border-radius:16px; overflow:hidden; position:relative;
-    aspect-ratio:16/9; margin-bottom:8px; border:1px solid var(--line);
+    aspect-ratio:4/3; min-height:280px; max-height:70vh; margin-bottom:8px; border:1px solid var(--line);
   }
+  @media (min-width:640px){ .screen-wrap{ aspect-ratio:16/10; } }
   #player, #siteFrame{ width:100%; height:100%; border:0; display:none; }
   .screen-placeholder{
     position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -215,6 +222,8 @@
     <div class="participants" id="participantsRow">
       <span class="count" id="participantsCount">参加者を確認中…</span>
     </div>
+
+    <div class="host-banner" id="hostBanner" style="display:none;">👑 ホストの操作にあわせて再生・表示が同期されます。あなたは視聴のみです。</div>
 
     <div class="screen-wrap" id="screenWrap">
       <div class="screen-placeholder" id="screenPlaceholder">
@@ -452,7 +461,7 @@
   }
 
   function onPlayerStateChange(e){
-    if(suppressEvents || !currentRoomId || currentType !== 'video') return;
+    if(suppressEvents || !currentRoomId || currentType !== 'video' || !isHost()) return;
     if(e.data === YT.PlayerState.PLAYING) pushPlaybackState('playing');
     else if(e.data === YT.PlayerState.PAUSED) pushPlaybackState('paused');
   }
@@ -502,17 +511,31 @@
   let latestRoomData = null;
   let driftTimer = null;
   let participantsMap = {};
+  let roomHostId = null;
 
   function nameFor(id){
     if(id === clientId) return myName + '（あなた）';
     return (participantsMap[id] && participantsMap[id].name) || 'だれか';
   }
 
+  function isHost(){
+    return !!(currentRoomId && roomHostId && roomHostId === clientId);
+  }
+
+  function updateHostUI(){
+    const host = isHost();
+    ['btnLoadVideo','btnLoadSite','videoUrlInput','siteUrlInput','engineDdg','engineGoogle','engineGoogleImages'].forEach(id=>{
+      const el = $(id);
+      if(el) el.disabled = !host;
+    });
+    $('hostBanner').style.display = (roomHostId && !host) ? 'block' : 'none';
+  }
+
   function goHome(){
     if(myParticipantRef){ myParticipantRef.remove().catch(()=>{}); myParticipantRef = null; }
     if(participantsRef){ participantsRef.off(); participantsRef = null; }
     if(roomRef){ roomRef.off(); roomRef = null; }
-    currentRoomId = null; currentVideoId = null; latestRoomData = null; currentType = null; participantsMap = {};
+    currentRoomId = null; currentVideoId = null; latestRoomData = null; currentType = null; participantsMap = {}; roomHostId = null;
     if(driftTimer){ clearInterval(driftTimer); driftTimer = null; }
     if(player){ try{ player.destroy(); }catch(e){} player = null; }
     $('screenPlaceholder').style.display = 'flex';
@@ -522,6 +545,10 @@
     $('siteBlockedNotice').style.display = 'none';
     $('syncStatusRow').style.display = 'none';
     $('openCurrentLink').style.display = 'none';
+    $('hostBanner').style.display = 'none';
+    ['btnLoadVideo','btnLoadSite','videoUrlInput','siteUrlInput','engineDdg','engineGoogle','engineGoogleImages'].forEach(id=>{
+      const el = $(id); if(el) el.disabled = false;
+    });
     $('videoUrlInput').value = '';
     $('siteUrlInput').value = '';
     $('customCodeInput').value = '';
@@ -549,7 +576,7 @@
     participantsRef.on('value', onParticipantsSnapshot);
 
     driftTimer = setInterval(()=>{
-      if(currentType === 'video' && player && typeof player.getPlayerState === 'function' && player.getPlayerState() === YT.PlayerState.PLAYING){
+      if(isHost() && currentType === 'video' && player && typeof player.getPlayerState === 'function' && player.getPlayerState() === YT.PlayerState.PLAYING){
         pushPlaybackState('playing');
       }
     }, 4000);
@@ -572,7 +599,7 @@
       dot.className = 'dot';
       dot.style.background = colorForId(id);
       const label = document.createElement('span');
-      label.textContent = (data[id].name || '名無し') + (id === clientId ? '（あなた）' : '');
+      label.textContent = (id === roomHostId ? '👑 ' : '') + (data[id].name || '名無し') + (id === clientId ? '（あなた）' : '');
       chip.appendChild(dot);
       chip.appendChild(label);
       row.appendChild(chip);
@@ -587,6 +614,11 @@
     }
     latestRoomData = data;
 
+    if(data.hostId && data.hostId !== roomHostId){
+      roomHostId = data.hostId;
+      updateHostUI();
+    }
+
     if(data.type !== currentType){
       currentType = data.type;
       if(currentType === 'video') showVideoSurface();
@@ -599,8 +631,8 @@
         if(ytReady) createOrLoadPlayer(currentVideoId); else pendingLoadVideoId = currentVideoId;
       }
       if(player && typeof player.getPlayerState === 'function') applyPendingRoomState();
-      const who = nameFor(data.video.by);
-      $('syncStatusText').textContent = data.video.status === 'playing' ? (who + 'さんの再生に同期中') : '一時停止中';
+      const hostLabel = isHost() ? 'あなた' : nameFor(roomHostId);
+      $('syncStatusText').textContent = data.video.status === 'playing' ? ('ホスト（' + hostLabel + '）の再生に同期中') : 'ホストが一時停止中';
     }
 
     if(currentType === 'site' && data.site && data.site.url){
@@ -676,7 +708,8 @@
     function createWithId(roomId){
       db.ref('rooms/' + roomId).set({
         type: null,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        hostId: clientId
       }).then(()=>{
         $('btnCreateRoom').disabled = false;
         enterRoom(roomId);
@@ -727,6 +760,7 @@
   });
 
   $('btnLoadVideo').addEventListener('click', ()=>{
+    if(!isHost()){ showToast('ホストだけが操作できます'); return; }
     const raw = $('videoUrlInput').value;
     const id = extractVideoId(raw);
     if(!id){
@@ -756,6 +790,7 @@
   });
 
   $('btnLoadSite').addEventListener('click', ()=>{
+    if(!isHost()){ showToast('ホストだけが操作できます'); return; }
     const raw = $('siteUrlInput').value;
     const url = resolveWebInput(raw, selectedEngine);
     if(!url){ showToast('検索キーワードかURLを入力してください'); return; }
