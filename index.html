@@ -1,824 +1,641 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>いっしょに観る | 同時視聴ルーム</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ブラウザ同時視聴</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg: #14121f;
-    --bg-deep: #0d0b16;
-    --surface: #1f1b2e;
-    --surface-raised: #2a2440;
-    --line: #362f4d;
-    --marquee: #f2a93b;
-    --marquee-dim: #7a5a26;
-    --screen: #4fd1c5;
-    --text: #f5f1fa;
-    --text-muted: #a79fc0;
-    --danger: #e8607a;
-    --danger-deep: #3a1420;
+    --bg:#0e1219; --panel:#161c27; --panel2:#1d2534; --line:#2b3548;
+    --text:#eaeef6; --mute:#8f9bb3; --accent:#7cc4ff; --accent-ink:#06121f; --danger:#ff7a6b; --live:#ff5d73;
   }
-  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
-  html,body{ margin:0; padding:0; }
-  body{
-    background:
-      radial-gradient(120% 60% at 50% -10%, #241f38 0%, var(--bg) 55%),
-      var(--bg);
-    color:var(--text);
-    font-family:'Manrope', sans-serif;
-    min-height:100vh;
-    min-height:100dvh;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-  }
-  .display{ font-family:'Fraunces', serif; }
-  :focus-visible{ outline:2px solid var(--marquee); outline-offset:3px; }
-  @media (prefers-reduced-motion: reduce){ *{ animation:none !important; transition:none !important; } }
-
-  .app{ width:100%; max-width:640px; min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; padding: 26px 20px 40px; }
-
-  .bulb-row{ display:flex; gap:7px; padding-bottom:18px; }
-  .bulb{ width:6px; height:6px; border-radius:50%; background:var(--marquee-dim); }
-  .bulb.lit{ background:var(--marquee); box-shadow:0 0 8px 1px rgba(242,169,59,.7); }
-
-  button{ font-family:'Manrope', sans-serif; cursor:pointer; }
-
-  .btn{
-    width:100%; border:none; border-radius:14px; padding:15px 20px;
-    font-size:15.5px; font-weight:700; letter-spacing:.01em;
-    display:flex; align-items:center; justify-content:center; gap:8px;
-  }
-  .btn-primary{ background:var(--marquee); color:#241705; }
-  .btn-primary:active{ background:#e0982c; }
-  .btn-ghost{ background:transparent; color:var(--text); border:1.5px solid var(--line); }
-  .btn-ghost:active{ border-color:var(--marquee); }
-  .btn-danger{ background:transparent; color:var(--danger); border:1.5px solid rgba(232,96,122,.4); }
-  .btn-danger:active{ background:var(--danger-deep); }
-  .btn:disabled{ opacity:.45; pointer-events:none; }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);
+    font-family:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    -webkit-text-size-adjust:100%}
+  button,input{font:inherit;color:inherit}
+  .hidden{display:none !important}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
   input[type=text]{
-    width:100%; background:var(--surface); border:1.5px solid var(--line); color:var(--text);
-    border-radius:12px; padding:13px 15px; font-size:15px; font-family:'Manrope';
+    width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;font-size:16px;
   }
-  input[type=text]::placeholder{ color:var(--text-muted); }
-  input[type=text]:focus{ border-color:var(--marquee); }
-  input[type=text]:disabled{ opacity:.5; }
-  .engine-btn:disabled{ opacity:.4; pointer-events:none; }
+  input::placeholder{color:#66738d}
+  .btn{
+    border:0;border-radius:10px;padding:12px 18px;font-weight:700;cursor:pointer;
+    background:var(--accent);color:var(--accent-ink);white-space:nowrap;
+  }
+  .btn:hover{filter:brightness(1.08)}
+  .btn:disabled{opacity:.45;cursor:default;filter:none}
+  .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+  .btn.ghost:hover:not(:disabled){border-color:var(--accent)}
+  .btn.live{background:var(--live);color:#2a0710}
+  .btn.danger{background:transparent;color:var(--danger);border:1px solid var(--danger)}
+  .btn.danger.armed{background:var(--danger);color:#2a0905}
 
-  .hint{ color:var(--text-muted); font-size:12px; line-height:1.6; margin-top:8px; }
-
-  /* ---------- home ---------- */
-  #screen-home{ display:flex; flex-direction:column; flex:1; }
-  .hero{ padding: 14px 0 26px; }
-  .hero h1{ font-size:36px; line-height:1.15; margin:0 0 12px; font-weight:600; }
-  .hero p{ color:var(--text-muted); font-size:14.5px; line-height:1.7; margin:0; max-width:34ch; }
-
-  .name-block{ display:flex; flex-direction:column; gap:8px; margin-bottom:22px; }
-  .field-label{ font-size:12.5px; color:var(--text-muted); }
-
-  .home-actions{ display:flex; flex-direction:column; gap:14px; margin-top:auto; padding-top:10px; }
-  .create-block{ display:flex; flex-direction:column; gap:10px; }
-  .divider{ display:flex; align-items:center; gap:12px; color:var(--text-muted); font-size:13px; margin:6px 0; }
-  .divider::before, .divider::after{ content:''; flex:1; height:1px; background:var(--line); }
-  .join-row{ display:flex; gap:10px; }
-  .join-row input{ text-transform:uppercase; letter-spacing:.1em; text-align:center; }
-  .join-row .btn{ width:auto; flex:0 0 auto; padding:13px 18px; }
-
-  .error-text{ color:var(--danger); font-size:13px; min-height:18px; margin-top:8px; }
+  /* ---------- lobby ---------- */
+  #lobby{min-height:100dvh;display:grid;place-items:center;padding:24px 16px}
+  .lobby-card{width:100%;max-width:440px}
+  .lobby-card h1{font-size:34px;line-height:1.2;margin:0 0 6px;letter-spacing:.02em}
+  .lobby-card .sub{margin:0 0 26px;color:var(--mute);line-height:1.7;font-size:14px}
+  label{display:block;font-size:13px;color:var(--mute);margin:0 0 6px}
+  .field{margin-bottom:16px}
+  .join-btn{width:100%;font-size:16px;padding:14px}
+  .rooms-title{margin:34px 0 10px;font-size:14px;color:var(--mute);font-weight:500}
+  .room-list{display:flex;flex-wrap:wrap;gap:8px;min-height:40px}
+  .room-chip{
+    background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 14px;
+    cursor:pointer;font-size:14px;display:flex;gap:8px;align-items:center;
+  }
+  .room-chip:hover{border-color:var(--accent)}
+  .room-chip small{color:var(--mute)}
+  .empty{color:#66738d;font-size:14px;padding:8px 0}
+  .wipe-row{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .wipe-row span{font-size:12px;color:var(--mute);line-height:1.5}
 
   /* ---------- room ---------- */
-  #screen-room{ display:none; flex-direction:column; flex:1; }
-  .ticket{
-    background:var(--surface); border:1px solid var(--line); border-radius:16px;
-    padding:16px 18px; display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:14px; position:relative;
-  }
-  .ticket::after{
-    content:''; position:absolute; right:104px; top:0; bottom:0; width:0;
-    border-left:1.5px dashed var(--line);
-  }
-  .ticket .code-block{ display:flex; flex-direction:column; gap:2px; }
-  .ticket .code-label{ font-size:11px; color:var(--text-muted); letter-spacing:.04em; }
-  .ticket .code{ font-family:'Fraunces', serif; font-size:24px; font-weight:600; letter-spacing:.06em; color:var(--marquee); }
-  .ticket .copy-btn{
-    background:var(--surface-raised); border:none; color:var(--text); border-radius:10px;
-    padding:10px 14px; font-size:13px; font-weight:600; width:90px;
-  }
-  .ticket .copy-btn:active{ background:var(--line); }
+  #roomView{display:flex;flex-direction:column;height:100dvh}
+  .topbar{display:flex;align-items:center;gap:12px;padding:12px 16px;
+    padding-top:calc(12px + env(safe-area-inset-top,0px))}
+  .topbar .title{min-width:0;flex:1}
+  .topbar strong{display:block;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topbar small{color:var(--mute);font-size:12px}
+  .layout{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;
+    padding:0 16px calc(16px + env(safe-area-inset-bottom,0px))}
+  .main-col{min-height:0;overflow-y:auto;padding:4px 4px 8px;display:flex;flex-direction:column;gap:14px}
 
-  .host-banner{
-    background:var(--surface); border:1px solid var(--line); border-radius:12px;
-    padding:11px 14px; font-size:12.5px; color:var(--text-muted); line-height:1.6; margin-bottom:16px;
+  .stage{
+    position:relative;aspect-ratio:16/9;width:100%;background:#05070b;border-radius:14px;overflow:hidden;
+    box-shadow:0 0 0 1px var(--line),0 24px 70px -24px rgba(124,196,255,.35);
+    flex:none;
   }
-  .participants{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
-  .participants .count{ font-size:12px; color:var(--text-muted); margin-right:2px; }
-  .chip{
-    display:flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--line);
-    border-radius:100px; padding:5px 11px 5px 7px; font-size:12.5px; color:var(--text);
+  .stage.live{box-shadow:0 0 0 2px var(--live),0 24px 70px -24px rgba(255,93,115,.45)}
+  #remote{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+  .stage-msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;
+    color:var(--mute);padding:20px;line-height:1.8;font-size:15px;pointer-events:none}
+
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .status{font-size:13px;color:var(--mute);margin-left:4px}
+  .status.on{color:var(--live)}
+
+  .seats{display:flex;flex-wrap:wrap;gap:8px}
+  .seat{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);
+    border-radius:999px;padding:4px 12px 4px 4px;font-size:13px;max-width:100%}
+  .seat.me{border-color:var(--accent)}
+  .seat.host{border-color:var(--live)}
+  .seat .dot{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+    font-weight:700;font-size:13px;color:#0b1220;flex:none}
+  .seat .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .seat .tag{font-size:11px;color:var(--live);font-weight:700}
+
+  .info{font-size:12px;color:var(--mute);line-height:1.8;margin:0}
+
+  .chat{min-height:0;display:flex;flex-direction:column;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .chat h2{margin:0;padding:12px 14px;font-size:14px;font-weight:700;border-bottom:1px solid var(--line)}
+  #log{flex:1;min-height:0;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+  .msg{font-size:14px;line-height:1.55;word-break:break-word}
+  .msg b{color:var(--accent);margin-right:6px;font-weight:700}
+  .msg.mine b{color:#ffd38a}
+  .chat-form{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
+
+  .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+    background:#f2f5fb;color:#0d1420;padding:10px 16px;border-radius:10px;font-size:14px;z-index:50;
+    max-width:calc(100vw - 32px);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+
+  @media (max-width:860px){
+    .layout{grid-template-columns:1fr;overflow-y:auto;gap:12px}
+    .main-col{overflow:visible;flex:none}
+    .chat{height:340px;flex:none}
   }
-  .chip .dot{ width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
-
-  .screen-wrap{
-    background:var(--bg-deep); border-radius:16px; overflow:hidden; position:relative;
-    aspect-ratio:4/3; min-height:280px; max-height:70vh; margin-bottom:8px; border:1px solid var(--line);
-  }
-  @media (min-width:640px){ .screen-wrap{ aspect-ratio:16/10; } }
-  #player, #siteFrame{ width:100%; height:100%; border:0; display:none; }
-  .screen-placeholder{
-    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:10px; color:var(--text-muted); font-size:13px; padding:0 30px; text-align:center;
-  }
-  .screen-placeholder .glow{ width:34px; height:34px; border-radius:50%; border:1.5px solid var(--screen); opacity:.6; }
-
-  .sync-status{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--text-muted); padding:2px 2px 18px; }
-  .sync-dot{ width:7px; height:7px; border-radius:50%; background:var(--screen); box-shadow:0 0 6px 1px rgba(79,209,197,.65); flex:0 0 auto; }
-
-  .open-current{ display:block; font-size:12px; color:var(--screen); text-decoration:none; padding:0 2px 16px; word-break:break-all; }
-
-  .section{ margin-bottom:20px; }
-  .section-title{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-muted); margin-bottom:9px; }
-  .section-title .tag{
-    font-size:10.5px; font-weight:700; letter-spacing:.06em; color:var(--bg);
-    background:var(--marquee); padding:2px 7px; border-radius:5px;
-  }
-  .section-title .tag.alt{ background:var(--screen); }
-  .engine-toggle{ display:flex; gap:8px; margin-bottom:10px; }
-  .engine-btn{
-    flex:1; background:var(--surface); border:1px solid var(--line); color:var(--text-muted);
-    border-radius:10px; padding:9px 10px; font-size:12.5px; font-weight:700;
-  }
-  .engine-btn.active{ background:var(--surface-raised); color:var(--text); border-color:var(--marquee); }
-  .load-row{ display:flex; gap:10px; }
-  .load-row .btn{ width:auto; flex:0 0 auto; padding:13px 16px; }
-
-  .spacer{ flex:1; }
-
-  .danger-zone{ border-top:1px solid var(--line); padding-top:20px; margin-top:6px; }
-  .danger-zone p{ color:var(--text-muted); font-size:12.5px; line-height:1.6; margin:0 0 12px; }
-
-  .toast{
-    position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px);
-    background:var(--surface-raised); border:1px solid var(--line); color:var(--text);
-    padding:12px 18px; border-radius:12px; font-size:13.5px; opacity:0; pointer-events:none;
-    transition:opacity .2s ease, transform .2s ease; z-index:50; max-width:88%; text-align:center;
-  }
-  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
-
-  .leave-btn{ background:none; border:none; color:var(--text-muted); font-size:13px; padding:6px 0 16px; text-align:left; }
+  @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important}}
 </style>
 </head>
 <body>
 
-<div class="app">
+<!-- ============ ロビー ============ -->
+<div id="lobby">
+  <div class="lobby-card">
+    <h1>ブラウザ同時視聴</h1>
+    <p class="sub">ブラウザの画面を共有して、同じ画面をみんなで見られます。共有するのは別のブラウザのウィンドウでもOK。</p>
 
-  <!-- ===== HOME SCREEN ===== -->
-  <div id="screen-home">
-    <div class="bulb-row" id="bulbRowHome"></div>
-
-    <div class="hero">
-      <h1 class="display">いっしょに観る</h1>
-      <p>ルームを作ってURLを共有するだけ。動画もサイトも、同じタイミングでみんなと見られる。</p>
-    </div>
-
-    <div class="name-block">
-      <label for="usernameInput" class="field-label">あなたの名前</label>
-      <input type="text" id="usernameInput" placeholder="例: たろう" maxlength="20" autocomplete="off">
-    </div>
-
-    <div class="home-actions">
-      <div class="create-block">
-        <label for="customCodeInput" class="field-label">ルームコード（空欄なら自動で決まります）</label>
-        <input type="text" id="customCodeInput" placeholder="例: MOVIE1" maxlength="12" autocomplete="off" autocapitalize="characters">
-        <button class="btn btn-primary" id="btnCreateRoom">ルームを作る</button>
+    <form id="joinForm" autocomplete="off">
+      <div class="field">
+        <label for="nameInput">ユーザー名</label>
+        <input id="nameInput" type="text" maxlength="16" placeholder="例：たろう" required>
       </div>
-      <div class="divider">または</div>
-      <div class="join-row">
-        <input type="text" id="joinCodeInput" placeholder="ルームコード" maxlength="12" autocomplete="off" autocapitalize="characters">
-        <button class="btn btn-ghost" id="btnJoinRoom">参加</button>
+      <div class="field">
+        <label for="roomInput">ルーム名</label>
+        <input id="roomInput" type="text" maxlength="30" placeholder="新しい名前なら自動でルームができます" required>
       </div>
-      <div class="error-text" id="homeError"></div>
+      <button class="btn join-btn" id="joinBtn" type="submit">入室する</button>
+    </form>
+
+    <h2 class="rooms-title">いまあるルーム（タップで入力）</h2>
+    <div class="room-list" id="roomList"><div class="empty">読み込み中…</div></div>
+
+    <div class="wipe-row">
+      <span>全員のルーム・チャット・共有状態を<br>まとめて消します</span>
+      <button class="btn danger" id="wipeBtn" type="button">ルーム全削除</button>
     </div>
   </div>
-
-  <!-- ===== ROOM SCREEN ===== -->
-  <div id="screen-room">
-    <div class="bulb-row" id="bulbRowRoom"></div>
-
-    <button class="leave-btn" id="btnLeaveRoom">← ホームに戻る</button>
-
-    <div class="ticket">
-      <div class="code-block">
-        <span class="code-label">ルームコード</span>
-        <span class="code" id="roomCodeText">------</span>
-      </div>
-      <button class="copy-btn" id="btnCopyCode">コピー</button>
-    </div>
-
-    <div class="participants" id="participantsRow">
-      <span class="count" id="participantsCount">参加者を確認中…</span>
-    </div>
-
-    <div class="host-banner" id="hostBanner" style="display:none;">👑 ホストの操作にあわせて再生・表示が同期されます。あなたは視聴のみです。</div>
-
-    <div class="screen-wrap" id="screenWrap">
-      <div class="screen-placeholder" id="screenPlaceholder">
-        <div class="glow"></div>
-        <span>下の欄から動画かサイトを読み込むと、みんなの画面に表示されます</span>
-      </div>
-      <div id="player"></div>
-      <iframe id="siteFrame" allow="autoplay; encrypted-media; fullscreen" referrerpolicy="no-referrer"></iframe>
-      <div class="screen-placeholder" id="siteBlockedNotice" style="display:none;">
-        <div class="glow"></div>
-        <span id="siteBlockedText">このサイトは埋め込み表示を許可していません。</span>
-        <a class="btn btn-primary" id="siteBlockedLink" href="#" target="_blank" rel="noopener" style="width:auto; padding:10px 18px; margin-top:4px;">新しいタブで開く</a>
-      </div>
-    </div>
-
-    <div class="sync-status" id="syncStatusRow" style="display:none;">
-      <span class="sync-dot"></span>
-      <span id="syncStatusText">同期を待っています</span>
-    </div>
-    <a class="open-current" id="openCurrentLink" href="#" target="_blank" rel="noopener" style="display:none;">現在のページを新しいタブで開く ↗</a>
-
-    <div class="section">
-      <div class="section-title"><span class="tag">動画</span>YouTubeを読み込む</div>
-      <div class="load-row">
-        <input type="text" id="videoUrlInput" placeholder="youtube.com/watch?v=... を貼り付け">
-        <button class="btn btn-primary" id="btnLoadVideo">読込</button>
-      </div>
-      <div class="hint">URLは貼り付けるだけでOK。https:// が無くても大丈夫です。</div>
-    </div>
-
-    <div class="section">
-      <div class="section-title"><span class="tag alt">サイト</span>検索して同時に見る</div>
-      <div class="engine-toggle">
-        <button type="button" class="engine-btn active" id="engineDdg" data-engine="ddg">DuckDuckGo</button>
-        <button type="button" class="engine-btn" id="engineGoogle" data-engine="google">Google</button>
-        <button type="button" class="engine-btn" id="engineGoogleImages" data-engine="google-images">Google画像</button>
-      </div>
-      <div class="load-row">
-        <input type="text" id="siteUrlInput" placeholder="検索キーワード or サイトのURL">
-        <button class="btn btn-ghost" id="btnLoadSite">開く</button>
-      </div>
-      <div class="hint">キーワードは選んだ検索エンジンで表示します。Googleは埋め込みを嫌うサイトが多いので、表示が真っ白になったら上の「新しいタブで開く」を使ってください。</div>
-    </div>
-
-    <div class="spacer"></div>
-
-    <div class="danger-zone">
-      <p>ルームを削除すると、参加中の全員の画面から内容が消え、部屋自体がなくなります。</p>
-      <button class="btn btn-danger" id="btnDeleteRoom">ルームを全削除する</button>
-    </div>
-  </div>
-
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- ============ ルーム ============ -->
+<div id="roomView" class="hidden">
+  <div class="topbar">
+    <button class="btn ghost" id="leaveBtn" type="button">退室</button>
+    <div class="title">
+      <strong id="roomTitle"></strong>
+      <small id="countText"></small>
+    </div>
+  </div>
+
+  <div class="layout">
+    <section class="main-col">
+      <div class="stage" id="stage">
+        <video id="remote" autoplay playsinline></video>
+        <div class="stage-msg" id="stageMsg"></div>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="shareBtn" type="button">画面を共有する</button>
+        <button class="btn ghost" id="soundBtn" type="button">音を出す</button>
+        <button class="btn ghost" id="fsBtn" type="button">全画面</button>
+        <span class="status" id="status"></span>
+      </div>
+
+      <div class="seats" id="seats"></div>
+
+      <p class="info">
+        見せたい側が「画面を共有する」を押し、ブラウザのダイアログで<b>タブ</b>か<b>ウィンドウ</b>を選びます。
+        別のブラウザで開いたGoogleを見せたいときは「ウィンドウ」から選んでください。
+        タブ共有なら「タブの音声も共有」にチェックで音も届きます。共有できるのは同時に1人です。
+      </p>
+    </section>
+
+    <aside class="chat">
+      <h2>チャット</h2>
+      <div id="log"></div>
+      <form class="chat-form" id="chatForm" autocomplete="off">
+        <input id="chatInput" type="text" maxlength="300" placeholder="メッセージ">
+        <button class="btn" type="submit">送信</button>
+      </form>
+    </aside>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-
 <script>
-(function(){
-  "use strict";
+// ================= Firebase =================
+const firebaseConfig = {
+  apiKey: "AIzaSyAqe24qeS_gYtMA_gnF_lYNP70keCQcpnA",
+  authDomain: "renritu-56ae7.firebaseapp.com",
+  databaseURL: "https://renritu-56ae7-default-rtdb.firebaseio.com",
+  projectId: "renritu-56ae7",
+  storageBucket: "renritu-56ae7.firebasestorage.app",
+  messagingSenderId: "327969979771",
+  appId: "1:327969979771:web:709a0fc2a281dc495e91de",
+  measurementId: "G-VFLGB9QXR3"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const ROOT = db.ref('browserWatch/rooms');     // 全削除はこの配下だけ消える
+const TS = firebase.database.ServerValue.TIMESTAMP;
 
-  // ---------- Firebase init ----------
-  const firebaseConfig = {
-    apiKey: "AIzaSyCGkbyKm-ThFB-dA5aeFBAPmwB7aGE0bCE",
-    authDomain: "kmtpj-a8f92.firebaseapp.com",
-    databaseURL: "https://kmtpj-a8f92-default-rtdb.firebaseio.com",
-    projectId: "kmtpj-a8f92",
-    storageBucket: "kmtpj-a8f92.firebasestorage.app",
-    messagingSenderId: "79749146454",
-    appId: "1:79749146454:web:86c5f7cceb3f0b684858f7",
-    measurementId: "G-C13R4G84QW"
+const RTC_CFG = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }] };
+const MAX_BITRATE = 3000000; // 共有映像の上限（視聴者1人あたり）
+
+// 自分のID（タブごと）
+let uid = null;
+try { uid = sessionStorage.getItem('bw_uid'); } catch (e) {}
+if (!uid) {
+  uid = 'u' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+  try { sessionStorage.setItem('bw_uid', uid); } catch (e) {}
+}
+
+const $ = s => document.querySelector(s);
+const S = {
+  ref: null, me: null, key: '', name: '', listeners: [],
+  members: {}, host: null,
+  localStream: null, peers: {},                       // 共有する側
+  viewerPc: null, viewerSid: null, vReady: false, vPending: [], lastOffer: null, vState: ''  // 見る側
+};
+
+// ================= 共通 =================
+let toastT;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.remove('hidden');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.add('hidden'), 3600);
+}
+function hue(str) { let h = 0; for (const c of str) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
+function listen(ref, ev, cb) { ref.on(ev, cb); S.listeners.push([ref, ev, cb]); }
+const dbError = () => toast('データベースに接続できません。Realtime Databaseのルールを確認してください');
+const cand = c => JSON.parse(JSON.stringify(c.toJSON ? c.toJSON() : c));
+
+// ================= ロビー =================
+try { $('#nameInput').value = localStorage.getItem('bw_name') || ''; } catch (e) {}
+
+let lobbyOn = false;
+function startLobby() {
+  stopLobby(); lobbyOn = true;
+  ROOT.on('value', snap => {
+    const box = $('#roomList'); box.innerHTML = '';
+    const val = snap.val();
+    const keys = val ? Object.keys(val).filter(k => val[k] && val[k].meta) : [];
+    if (!keys.length) { box.innerHTML = '<div class="empty">まだルームがありません。好きな名前で作れます。</div>'; return; }
+    keys.forEach(k => {
+      const v = val[k];
+      const n = v.members ? Object.keys(v.members).length : 0;
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'room-chip';
+      const nm = document.createElement('span'); nm.textContent = v.meta.name || k;
+      const sm = document.createElement('small'); sm.textContent = n + '人';
+      b.append(nm, sm);
+      b.onclick = () => { $('#roomInput').value = v.meta.name || k; $('#nameInput').focus(); };
+      box.appendChild(b);
+    });
+  }, dbError);
+}
+function stopLobby() { if (lobbyOn) { ROOT.off('value'); lobbyOn = false; } }
+
+// ルーム全削除（2度押し）
+let wipeArmed = false, wipeT;
+$('#wipeBtn').onclick = async () => {
+  const b = $('#wipeBtn');
+  if (!wipeArmed) {
+    wipeArmed = true; b.classList.add('armed'); b.textContent = 'もう一度押すと削除';
+    wipeT = setTimeout(resetWipe, 4000); return;
+  }
+  clearTimeout(wipeT); resetWipe();
+  try { await ROOT.remove(); toast('すべてのルームを削除しました'); }
+  catch (e) { dbError(); }
+};
+function resetWipe() {
+  wipeArmed = false; const b = $('#wipeBtn'); b.classList.remove('armed'); b.textContent = 'ルーム全削除';
+}
+
+$('#joinForm').addEventListener('submit', e => { e.preventDefault(); joinRoom(); });
+
+async function joinRoom() {
+  const name = $('#nameInput').value.trim().slice(0, 16);
+  const roomName = $('#roomInput').value.trim().slice(0, 30);
+  const key = roomName.replace(/[.#$\[\]\/]/g, '_');
+  if (!name || !key) { toast('ユーザー名とルーム名を入力してください'); return; }
+  try { localStorage.setItem('bw_name', name); } catch (e) {}
+
+  const btn = $('#joinBtn'); btn.disabled = true;
+  const ref = ROOT.child(key);
+  try {
+    await ref.child('meta').transaction(cur => cur || { name: roomName, createdAt: Date.now() });
+  } catch (err) { dbError(); btn.disabled = false; return; }
+  btn.disabled = false;
+
+  stopLobby();
+  Object.assign(S, { ref, key, name, members: {}, host: null, lastOffer: null, viewerSid: null, vReady: false, vPending: [], vState: '' });
+  S.me = ref.child('members/' + uid);
+  S.me.onDisconnect().remove();
+  S.me.set({ name, at: TS });
+
+  $('#lobby').classList.add('hidden');
+  $('#roomView').classList.remove('hidden');
+  $('#log').innerHTML = '';
+  showIdle(); updateStatus();
+
+  let seenMeta = false;
+  listen(ref.child('meta'), 'value', s => {
+    if (s.exists()) { seenMeta = true; $('#roomTitle').textContent = s.val().name || key; }
+    else if (seenMeta) leaveRoom('ルームが削除されました');
+  });
+  listen(ref.child('members'), 'value', s => onMembers(s.val() || {}));
+  listen(ref.child('host'), 'value', s => onHost(s.val()));
+  listen(ref.child('rtc/' + uid + '/offer'), 'value', s => { S.lastOffer = s.val(); tryOffer(); });
+  listen(ref.child('rtc/' + uid + '/hc'), 'child_added', s => onHostCandidate(s.val()));
+  listen(ref.child('chat').limitToLast(60), 'child_added', s => addChat(s.val()));
+}
+
+function leaveRoom(msg) {
+  if (!S.ref) return;
+  stopShare();
+  closeViewer(true);
+  S.listeners.forEach(([r, e, c]) => r.off(e, c)); S.listeners = [];
+  try { S.me.onDisconnect().cancel(); S.me.remove(); } catch (e) {}
+  S.ref = null; S.me = null; S.host = null; S.members = {};
+  $('#roomView').classList.add('hidden');
+  $('#lobby').classList.remove('hidden');
+  startLobby();
+  if (msg) toast(msg);
+}
+$('#leaveBtn').onclick = () => leaveRoom();
+
+// ================= メンバー・チャット =================
+function onMembers(val) {
+  S.members = val;
+  renderSeats();
+  if (S.localStream) {
+    for (const [id, m] of Object.entries(val)) {
+      if (id === uid) continue;
+      const p = S.peers[id];
+      if (!p || p.at !== m.at) connectViewer(id, m.at);
+    }
+    for (const id of Object.keys(S.peers)) if (!val[id]) closePeer(id);
+  }
+  updateStatus();
+}
+
+function renderSeats() {
+  const arr = Object.entries(S.members).map(([id, m]) => ({ id, name: m.name || '?', at: m.at || 0 }))
+    .sort((a, b) => a.at - b.at);
+  $('#countText').textContent = arr.length + '人が参加中';
+  const box = $('#seats'); box.innerHTML = '';
+  arr.forEach(m => {
+    const isHost = S.host && S.host.id === m.id;
+    const d = document.createElement('div');
+    d.className = 'seat' + (m.id === uid ? ' me' : '') + (isHost ? ' host' : ''); d.title = m.name;
+    const dot = document.createElement('span'); dot.className = 'dot';
+    dot.style.background = `hsl(${hue(m.name)} 65% 68%)`; dot.textContent = [...m.name][0];
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = m.name + (m.id === uid ? '（自分）' : '');
+    d.append(dot, nm);
+    if (isHost) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = '共有中'; d.appendChild(t); }
+    box.appendChild(d);
+  });
+}
+
+function addChat(m) {
+  if (!m) return;
+  const log = $('#log');
+  const near = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+  const d = document.createElement('div'); d.className = 'msg' + (m.id === uid ? ' mine' : '');
+  const b = document.createElement('b'); b.textContent = m.name || '?';
+  const t = document.createElement('span'); t.textContent = m.text || '';
+  d.append(b, t); log.appendChild(d);
+  if (near || m.id === uid) log.scrollTop = log.scrollHeight;
+}
+$('#chatForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const inp = $('#chatInput'); const text = inp.value.trim().slice(0, 300);
+  if (!text || !S.ref) return;
+  S.ref.child('chat').push({ id: uid, name: S.name, text, at: TS }).catch(dbError);
+  inp.value = '';
+});
+
+// ================= 表示まわり =================
+function setStage(text) {
+  const m = $('#stageMsg');
+  if (text) { m.textContent = text; m.classList.remove('hidden'); } else m.classList.add('hidden');
+}
+function showIdle() {
+  const v = $('#remote');
+  if (!S.localStream) { v.srcObject = null; }
+  $('#stage').classList.remove('live');
+  setStage('まだ誰も共有していません。「画面を共有する」を押すと、ここに表示されます');
+}
+
+function updateStatus() {
+  const btn = $('#shareBtn'), st = $('#status'), h = S.host;
+  st.classList.remove('on');
+  if (S.localStream) {
+    btn.textContent = '共有を止める'; btn.className = 'btn live'; btn.disabled = false;
+    const total = Object.keys(S.peers).length;
+    const ok = Object.values(S.peers).filter(p => p.pc.connectionState === 'connected').length;
+    st.textContent = `共有中（視聴 ${ok}/${total}人）`; st.classList.add('on');
+  } else if (h) {
+    btn.textContent = '画面を共有する'; btn.className = 'btn'; btn.disabled = true;
+    st.textContent = `${h.name}さんの画面：${S.vState || '接続待ち…'}`;
+  } else {
+    btn.textContent = '画面を共有する'; btn.className = 'btn'; btn.disabled = false;
+    st.textContent = '';
+  }
+  updateSoundBtn();
+}
+
+function updateSoundBtn() {
+  const v = $('#remote'), b = $('#soundBtn');
+  const viewing = !S.localStream && v.srcObject;
+  b.classList.toggle('hidden', !viewing);
+  b.textContent = v.muted ? '音を出す' : '音を消す';
+}
+$('#soundBtn').onclick = async () => {
+  const v = $('#remote'); v.muted = !v.muted;
+  if (!v.muted) { try { await v.play(); } catch (e) {} }
+  updateSoundBtn();
+};
+$('#fsBtn').onclick = () => { const s = $('#stage'); (s.requestFullscreen || s.webkitRequestFullscreen || (() => {})).call(s); };
+
+// ================= 共有する側 =================
+$('#shareBtn').onclick = () => { if (S.localStream) stopShare(); else startShare(); };
+
+async function startShare() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    toast('この端末では画面共有を開始できません。PCのブラウザで開いてください'); return;
+  }
+  let stream;
+  try { stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 30 } }, audio: true }); }
+  catch (e) { return; } // キャンセル
+
+  S.localStream = stream;
+  const vt = stream.getVideoTracks()[0];
+  if (vt) { try { vt.contentHint = 'detail'; } catch (e) {} vt.onended = () => stopShare(); }
+
+  let res;
+  try {
+    res = await S.ref.child('host').transaction(cur => (cur && cur.id !== uid) ? undefined : { id: uid, name: S.name, at: Date.now() });
+  } catch (e) { dbError(); res = { committed: false }; }
+  if (!res.committed) {
+    const other = res.snapshot && res.snapshot.val();
+    stream.getTracks().forEach(t => t.stop()); S.localStream = null;
+    if (other) toast(`${other.name}さんが共有中です`);
+    updateStatus(); return;
+  }
+  S.ref.child('host').onDisconnect().remove();
+
+  const v = $('#remote'); v.muted = true; v.srcObject = stream; v.play().catch(() => {});
+  setStage(null); $('#stage').classList.add('live');
+  for (const [id, m] of Object.entries(S.members)) if (id !== uid) connectViewer(id, m.at);
+  updateStatus();
+}
+
+function stopShare() {
+  if (!S.localStream) return;
+  S.localStream.getTracks().forEach(t => { t.onended = null; t.stop(); });
+  S.localStream = null;
+  Object.keys(S.peers).forEach(closePeer);
+  const ref = S.ref;
+  if (ref) {
+    ref.child('host').onDisconnect().cancel();
+    ref.child('host').transaction(cur => (cur && cur.id === uid) ? null : undefined).catch(() => {});
+    ref.child('rtc').remove().catch(() => {});
+  }
+  $('#remote').srcObject = null; $('#remote').muted = false;
+  showIdle(); updateStatus();
+}
+
+function closePeer(vid) {
+  const p = S.peers[vid]; if (!p) return;
+  p.unsubs.forEach(([r, e, c]) => r.off(e, c));
+  try { p.pc.close(); } catch (e) {}
+  delete S.peers[vid];
+  updateStatus();
+}
+
+function tuneBitrate(pc) {
+  pc.getSenders().forEach(s => {
+    if (!s.track || s.track.kind !== 'video') return;
+    try {
+      const p = s.getParameters();
+      if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+      p.encodings[0].maxBitrate = MAX_BITRATE;
+      p.degradationPreference = 'maintain-resolution';
+      s.setParameters(p).catch(() => {});
+    } catch (e) {}
+  });
+}
+
+async function connectViewer(vid, at) {
+  closePeer(vid);
+  const sid = Math.random().toString(36).slice(2, 10);
+  const pc = new RTCPeerConnection(RTC_CFG);
+  const peer = { pc, sid, at, unsubs: [], pending: [], answered: false, ready: false };
+  S.peers[vid] = peer;
+  const alive = () => S.peers[vid] === peer && S.localStream;
+  const base = S.ref.child('rtc/' + vid);
+
+  S.localStream.getTracks().forEach(t => pc.addTrack(t, S.localStream));
+
+  pc.onicecandidate = e => { if (e.candidate && alive()) base.child('hc').push({ sid, c: cand(e.candidate) }); };
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'connected') tuneBitrate(pc);
+    if (pc.connectionState === 'failed') {
+      const m = S.members[vid]; toast(`${m ? m.name : '視聴者'}さんと接続できませんでした（ネットワーク制限の可能性）`);
+    }
+    updateStatus();
   };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
 
-  // ---------- helpers ----------
-  const $ = (id) => document.getElementById(id);
-  const clientId = 'c-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-  const AVATAR_COLORS = ['#f2a93b', '#4fd1c5', '#e8607a', '#8f7fe0', '#6fbf6f', '#e0a3ff'];
+  try {
+    await base.remove();
+    if (!alive()) return;
 
-  function showToast(msg){
-    const t = $('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(()=> t.classList.remove('show'), 2400);
-  }
+    const ansRef = base.child('answer');
+    const ansCb = async s => {
+      const v = s.val();
+      if (!v || v.sid !== sid || peer.answered) return;
+      peer.answered = true;
+      try {
+        await pc.setRemoteDescription({ type: 'answer', sdp: v.sdp });
+        peer.ready = true;
+        peer.pending.forEach(c => pc.addIceCandidate(c).catch(() => {})); peer.pending = [];
+      } catch (e) {}
+    };
+    ansRef.on('value', ansCb); peer.unsubs.push([ansRef, 'value', ansCb]);
 
-  function decorateBulbs(el){
-    el.innerHTML = '';
-    for(let i=0;i<10;i++){
-      const b = document.createElement('div');
-      b.className = 'bulb' + (i % 2 === 0 ? ' lit' : '');
-      el.appendChild(b);
-    }
-  }
-  decorateBulbs($('bulbRowHome'));
-  decorateBulbs($('bulbRowRoom'));
+    const vcRef = base.child('vc');
+    const vcCb = s => {
+      const v = s.val(); if (!v || v.sid !== sid) return;
+      if (peer.ready) pc.addIceCandidate(v.c).catch(() => {}); else peer.pending.push(v.c);
+    };
+    vcRef.on('child_added', vcCb); peer.unsubs.push([vcRef, 'child_added', vcCb]);
 
-  function colorForId(id){
-    let h = 0;
-    for(let i=0;i<id.length;i++) h = (h*31 + id.charCodeAt(i)) >>> 0;
-    return AVATAR_COLORS[h % AVATAR_COLORS.length];
-  }
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    if (!alive()) return;
+    await base.child('offer').set({ sid, from: uid, sdp: offer.sdp });
+  } catch (e) { console.error(e); }
+  updateStatus();
+}
 
-  function sanitizeCode(v, maxLen){
-    return v.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0, maxLen);
+// ================= 見る側 =================
+function onHost(h) {
+  S.host = h || null;
+  if (h && h.id === uid && !S.localStream) {           // 前回セッションの残り
+    S.ref.child('host').remove().catch(() => {}); return;
   }
-  function makeRoomCode(){
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let s = '';
-    for(let i=0;i<6;i++) s += chars[Math.floor(Math.random()*chars.length)];
-    return s;
+  if (!h) {
+    if (S.localStream) stopShare();
+    closeViewer(); showIdle();
+  } else if (h.id !== uid) {
+    if (S.localStream) stopShare();
+    if (!S.viewerPc) { S.vState = '接続待ち…'; setStage('接続しています…'); }
+    tryOffer();
   }
+  renderSeats(); updateStatus();
+}
 
-  // ---------- username ----------
-  const USERNAME_KEY = 'watchTogetherUsername';
-  function loadSavedUsername(){
-    try{ return localStorage.getItem(USERNAME_KEY) || ''; }catch(e){ return ''; }
-  }
-  function saveUsername(name){
-    try{ localStorage.setItem(USERNAME_KEY, name); }catch(e){ /* ignore */ }
-  }
-  $('usernameInput').value = loadSavedUsername();
+function tryOffer() {
+  const o = S.lastOffer, h = S.host;
+  if (!o || !h || h.id === uid || o.from !== h.id || S.localStream) return;
+  if (S.viewerSid === o.sid) return;
+  acceptOffer(o);
+}
 
-  function resolveUsername(){
-    let name = $('usernameInput').value.trim().slice(0, 20);
-    if(!name){ name = 'ゲスト' + Math.floor(100 + Math.random()*900); }
-    saveUsername(name);
-    return name;
-  }
-  let myName = '';
+async function acceptOffer(o) {
+  closeViewer();
+  S.viewerSid = o.sid; S.vReady = false;
+  const pc = new RTCPeerConnection(RTC_CFG); S.viewerPc = pc;
+  const cur = () => S.viewerPc === pc;
 
-  // ---------- YouTube video extraction ----------
-  function extractVideoId(raw){
-    if(!raw) return null;
-    let s = raw.trim().replace(/\u3000/g, ' ').trim();
-    if(!s) return null;
-    if(/^[a-zA-Z0-9_-]{11}$/.test(s)) return s;
-    if(!/^https?:\/\//i.test(s)) s = 'https://' + s;
-    let url;
-    try{ url = new URL(s); }catch(e){ return null; }
-    let host = url.hostname.toLowerCase().replace(/^www\./, '').replace(/^m\./, '').replace(/^music\./, '');
-    if(host === 'youtu.be'){
-      const id = url.pathname.split('/').filter(Boolean)[0];
-      return (id && /^[a-zA-Z0-9_-]{11}$/.test(id)) ? id : null;
-    }
-    if(host === 'youtube.com' || host === 'youtube-nocookie.com'){
-      const v = url.searchParams.get('v');
-      if(v && /^[a-zA-Z0-9_-]{11}$/.test(v)) return v;
-      const parts = url.pathname.split('/').filter(Boolean);
-      if(parts.length >= 2 && ['shorts','embed','live'].includes(parts[0])){
-        const id = parts[1];
-        return /^[a-zA-Z0-9_-]{11}$/.test(id) ? id : null;
-      }
-    }
-    return null;
-  }
-
-  // ---------- generic site/search resolution ----------
-  const BLOCKED_BRAND_LABELS = ['amazon','twitter','instagram','facebook','tiktok','netflix','line','threads'];
-  // 'x' (x.com) is handled separately below since 'x' as a label is too easy to false-match.
-  function hostIsKnownBlocked(urlStr){
-    let h;
-    try{ h = new URL(urlStr).hostname.toLowerCase(); }catch(e){ return false; }
-    const labels = h.split('.');
-    if(labels.length === 2 && labels[0] === 'x' && labels[1] === 'com') return true; // x.com
-    return BLOCKED_BRAND_LABELS.some(b => labels.includes(b));
-  }
-  // Google blocks framing by default, but its search results page has long allowed
-  // embedding when the undocumented igu=1 parameter is present (used by Google Sites'
-  // own search gadget). It's not guaranteed to keep working, so we still surface the
-  // "open in new tab" link either way as a fallback.
-  function ensureGoogleEmbeddable(urlStr){
-    try{
-      const u = new URL(urlStr);
-      const labels = u.hostname.toLowerCase().split('.');
-      if(labels.includes('google') && u.pathname === '/search' && !u.searchParams.has('igu')){
-        u.searchParams.set('igu', '1');
-      }
-      return u.toString();
-    }catch(e){ return urlStr; }
-  }
-  function resolveWebInput(raw, engine){
-    if(!raw) return null;
-    let s = raw.trim().replace(/\u3000/g, ' ').trim();
-    if(!s) return null;
-    const looksLikeUrl = !/\s/.test(s) && /\.[a-zA-Z]{2,}([/:?#]|$)/.test(s);
-    let result = null;
-    if(looksLikeUrl){
-      if(!/^https?:\/\//i.test(s)) s = 'https://' + s;
-      try{ new URL(s); result = s; }catch(e){ result = null; }
-    }
-    if(!result){
-      if(engine === 'google') result = 'https://www.google.com/search?q=' + encodeURIComponent(s);
-      else if(engine === 'google-images') result = 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(s);
-      else result = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(s);
-    }
-    return ensureGoogleEmbeddable(result);
-  }
-
-  // ---------- YouTube IFrame API ----------
-  let ytReady = false;
-  let player = null;
-  let pendingLoadVideoId = null;
-  let suppressEvents = false;
-
-  window.onYouTubeIframeAPIReady = function(){
-    ytReady = true;
-    if(pendingLoadVideoId){ createOrLoadPlayer(pendingLoadVideoId); pendingLoadVideoId = null; }
+  pc.ontrack = e => {
+    if (!cur()) return;
+    const v = $('#remote');
+    if (v.srcObject !== e.streams[0]) v.srcObject = e.streams[0];
+    setStage(null); $('#stage').classList.add('live');
+    playRemote();
   };
-  (function loadYT(){
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.head.appendChild(tag);
-  })();
+  pc.onicecandidate = e => {
+    if (e.candidate && cur()) S.ref.child('rtc/' + uid + '/vc').push({ sid: o.sid, c: cand(e.candidate) });
+  };
+  pc.onconnectionstatechange = () => {
+    if (!cur()) return;
+    const st = pc.connectionState;
+    S.vState = st === 'connected' ? '視聴中' : st === 'failed' ? '接続に失敗（ネットワーク制限の可能性）' : st === 'disconnected' ? '再接続中…' : '接続中…';
+    if (st === 'failed') toast('接続に失敗しました。別のネットワークで試すか、TURNサーバーの設定が必要かもしれません');
+    updateStatus();
+  };
 
-  function createOrLoadPlayer(videoId){
-    if(player){
-      suppressEvents = true;
-      player.loadVideoById(videoId);
-      setTimeout(()=> suppressEvents = false, 600);
-      return;
-    }
-    player = new YT.Player('player', {
-      videoId: videoId,
-      playerVars: { playsinline: 1, rel: 0 },
-      events: {
-        onReady: function(){ applyPendingRoomState(); },
-        onStateChange: onPlayerStateChange
-      }
-    });
-  }
+  try {
+    await pc.setRemoteDescription({ type: 'offer', sdp: o.sdp });
+    if (!cur()) return;
+    S.vReady = true;
+    S.vPending.filter(x => x.sid === o.sid).forEach(x => pc.addIceCandidate(x.c).catch(() => {}));
+    S.vPending = [];
+    const ans = await pc.createAnswer();
+    await pc.setLocalDescription(ans);
+    if (!cur()) return;
+    await S.ref.child('rtc/' + uid + '/answer').set({ sid: o.sid, sdp: ans.sdp });
+  } catch (e) { console.error(e); }
+}
 
-  function onPlayerStateChange(e){
-    if(suppressEvents || !currentRoomId || currentType !== 'video' || !isHost()) return;
-    if(e.data === YT.PlayerState.PLAYING) pushPlaybackState('playing');
-    else if(e.data === YT.PlayerState.PAUSED) pushPlaybackState('paused');
-  }
+function onHostCandidate(v) {
+  if (!v) return;
+  if (S.vReady && v.sid === S.viewerSid && S.viewerPc) S.viewerPc.addIceCandidate(v.c).catch(() => {});
+  else if (S.vPending.length < 200) S.vPending.push({ sid: v.sid, c: v.c });
+}
 
-  // ---------- content-type switching ----------
-  let currentType = null; // 'video' | 'site' | null
+function closeViewer(force) {
+  if (S.viewerPc) { try { S.viewerPc.close(); } catch (e) {} }
+  S.viewerPc = null; S.viewerSid = null; S.vReady = false; S.vPending = []; S.vState = '';
+  if (!S.localStream) { $('#remote').srcObject = null; $('#stage').classList.remove('live'); }
+  if (force) updateSoundBtn();
+}
 
-  function showVideoSurface(){
-    $('screenPlaceholder').style.display = 'none';
-    $('siteFrame').style.display = 'none';
-    $('siteFrame').src = 'about:blank';
-    $('siteBlockedNotice').style.display = 'none';
-    $('player').style.display = 'block';
-    $('syncStatusRow').style.display = 'flex';
-    $('openCurrentLink').style.display = 'none';
-  }
-  function showSiteSurface(url){
-    $('screenPlaceholder').style.display = 'none';
-    $('player').style.display = 'none';
-    const frame = $('siteFrame');
-    const notice = $('siteBlockedNotice');
-    if(hostIsKnownBlocked(url)){
-      frame.style.display = 'none';
-      frame.src = 'about:blank';
-      let label = 'このサイト';
-      try{ label = new URL(url).hostname.replace(/^www\./, ''); }catch(e){}
-      $('siteBlockedText').textContent = label + ' は埋め込み表示を許可していません。下のボタンでみんな同じリンクを開いてください。';
-      $('siteBlockedLink').href = url;
-      notice.style.display = 'flex';
-    }else{
-      notice.style.display = 'none';
-      frame.style.display = 'block';
-      if(frame.src !== url) frame.src = url;
-    }
-    $('syncStatusRow').style.display = 'none';
-    const link = $('openCurrentLink');
-    link.href = url;
-    link.style.display = 'block';
-  }
+async function playRemote() {
+  const v = $('#remote');
+  v.muted = false;
+  try { await v.play(); }
+  catch (e) { v.muted = true; try { await v.play(); } catch (e2) {} toast('音声はブラウザにブロックされました。「音を出す」を押してください'); }
+  updateSoundBtn();
+}
 
-  // ---------- room state ----------
-  let currentRoomId = null;
-  let roomRef = null;
-  let participantsRef = null;
-  let myParticipantRef = null;
-  let currentVideoId = null;
-  let latestRoomData = null;
-  let driftTimer = null;
-  let participantsMap = {};
-  let roomHostId = null;
-
-  function nameFor(id){
-    if(id === clientId) return myName + '（あなた）';
-    return (participantsMap[id] && participantsMap[id].name) || 'だれか';
-  }
-
-  function isHost(){
-    return !!(currentRoomId && roomHostId && roomHostId === clientId);
-  }
-
-  function updateHostUI(){
-    const host = isHost();
-    ['btnLoadVideo','btnLoadSite','videoUrlInput','siteUrlInput','engineDdg','engineGoogle','engineGoogleImages'].forEach(id=>{
-      const el = $(id);
-      if(el) el.disabled = !host;
-    });
-    $('hostBanner').style.display = (roomHostId && !host) ? 'block' : 'none';
-  }
-
-  function goHome(){
-    if(myParticipantRef){ myParticipantRef.remove().catch(()=>{}); myParticipantRef = null; }
-    if(participantsRef){ participantsRef.off(); participantsRef = null; }
-    if(roomRef){ roomRef.off(); roomRef = null; }
-    currentRoomId = null; currentVideoId = null; latestRoomData = null; currentType = null; participantsMap = {}; roomHostId = null;
-    if(driftTimer){ clearInterval(driftTimer); driftTimer = null; }
-    if(player){ try{ player.destroy(); }catch(e){} player = null; }
-    $('screenPlaceholder').style.display = 'flex';
-    $('player').style.display = 'none';
-    $('siteFrame').style.display = 'none';
-    $('siteFrame').src = 'about:blank';
-    $('siteBlockedNotice').style.display = 'none';
-    $('syncStatusRow').style.display = 'none';
-    $('openCurrentLink').style.display = 'none';
-    $('hostBanner').style.display = 'none';
-    ['btnLoadVideo','btnLoadSite','videoUrlInput','siteUrlInput','engineDdg','engineGoogle','engineGoogleImages'].forEach(id=>{
-      const el = $(id); if(el) el.disabled = false;
-    });
-    $('videoUrlInput').value = '';
-    $('siteUrlInput').value = '';
-    $('customCodeInput').value = '';
-    $('joinCodeInput').value = '';
-    $('screen-room').style.display = 'none';
-    $('screen-home').style.display = 'flex';
-    $('homeError').textContent = '';
-  }
-
-  function enterRoom(roomId){
-    myName = resolveUsername();
-    currentRoomId = roomId;
-    $('roomCodeText').textContent = roomId;
-    $('screen-home').style.display = 'none';
-    $('screen-room').style.display = 'flex';
-
-    roomRef = db.ref('rooms/' + roomId);
-    roomRef.on('value', onRoomSnapshot, (err)=>{ showToast('接続できませんでした: ' + err.message); });
-
-    myParticipantRef = db.ref('rooms/' + roomId + '/participants/' + clientId);
-    myParticipantRef.set({ name: myName, joinedAt: Date.now() });
-    myParticipantRef.onDisconnect().remove();
-
-    participantsRef = db.ref('rooms/' + roomId + '/participants');
-    participantsRef.on('value', onParticipantsSnapshot);
-
-    driftTimer = setInterval(()=>{
-      if(isHost() && currentType === 'video' && player && typeof player.getPlayerState === 'function' && player.getPlayerState() === YT.PlayerState.PLAYING){
-        pushPlaybackState('playing');
-      }
-    }, 4000);
-  }
-
-  function onParticipantsSnapshot(snapshot){
-    const data = snapshot.val() || {};
-    participantsMap = data;
-    const ids = Object.keys(data);
-    const row = $('participantsRow');
-    row.innerHTML = '';
-    const countEl = document.createElement('span');
-    countEl.className = 'count';
-    countEl.textContent = ids.length + '人視聴中';
-    row.appendChild(countEl);
-    ids.forEach(id=>{
-      const chip = document.createElement('span');
-      chip.className = 'chip';
-      const dot = document.createElement('span');
-      dot.className = 'dot';
-      dot.style.background = colorForId(id);
-      const label = document.createElement('span');
-      label.textContent = (id === roomHostId ? '👑 ' : '') + (data[id].name || '名無し') + (id === clientId ? '（あなた）' : '');
-      chip.appendChild(dot);
-      chip.appendChild(label);
-      row.appendChild(chip);
-    });
-  }
-
-  function onRoomSnapshot(snapshot){
-    const data = snapshot.val();
-    if(!data){
-      if(currentRoomId){ showToast('このルームは削除されました'); goHome(); }
-      return;
-    }
-    latestRoomData = data;
-
-    if(data.hostId && data.hostId !== roomHostId){
-      roomHostId = data.hostId;
-      updateHostUI();
-    }
-
-    if(data.type !== currentType){
-      currentType = data.type;
-      if(currentType === 'video') showVideoSurface();
-      else if(currentType === 'site') showSiteSurface((data.site && data.site.url) || '');
-    }
-
-    if(currentType === 'video' && data.video && data.video.videoId){
-      if(data.video.videoId !== currentVideoId){
-        currentVideoId = data.video.videoId;
-        if(ytReady) createOrLoadPlayer(currentVideoId); else pendingLoadVideoId = currentVideoId;
-      }
-      if(player && typeof player.getPlayerState === 'function') applyPendingRoomState();
-      const hostLabel = isHost() ? 'あなた' : nameFor(roomHostId);
-      $('syncStatusText').textContent = data.video.status === 'playing' ? ('ホスト（' + hostLabel + '）の再生に同期中') : 'ホストが一時停止中';
-    }
-
-    if(currentType === 'site' && data.site && data.site.url){
-      showSiteSurface(data.site.url);
-    }
-  }
-
-  function applyPendingRoomState(){
-    if(!latestRoomData || currentType !== 'video' || !latestRoomData.video || !player || typeof player.getCurrentTime !== 'function') return;
-    const data = latestRoomData.video;
-    const elapsedSince = (Date.now() - (data.updatedAt || Date.now())) / 1000;
-    const expectedTime = data.status === 'playing' ? Math.max(0, data.time + elapsedSince) : data.time;
-
-    let playerState;
-    try{ playerState = player.getPlayerState(); }catch(e){ return; }
-    const isPlaying = playerState === YT.PlayerState.PLAYING;
-    const isPaused = playerState === YT.PlayerState.PAUSED;
-
-    if(data.by !== clientId){
-      if(data.status === 'playing' && !isPlaying){
-        suppressEvents = true;
-        player.seekTo(expectedTime, true);
-        player.playVideo();
-        setTimeout(()=> suppressEvents = false, 500);
-      }else if(data.status === 'paused' && !isPaused){
-        suppressEvents = true;
-        player.pauseVideo();
-        player.seekTo(expectedTime, true);
-        setTimeout(()=> suppressEvents = false, 500);
-      }
-    }
-
-    if(isPlaying || isPaused){
-      try{
-        const localTime = player.getCurrentTime();
-        if(Math.abs(localTime - expectedTime) > 1.5){
-          suppressEvents = true;
-          player.seekTo(expectedTime, true);
-          setTimeout(()=> suppressEvents = false, 500);
-        }
-      }catch(e){ /* ignore */ }
-    }
-  }
-
-  function pushPlaybackState(status){
-    if(!roomRef || !player || typeof player.getCurrentTime !== 'function') return;
-    let time = 0;
-    try{ time = player.getCurrentTime(); }catch(e){}
-    roomRef.update({
-      type: 'video',
-      'video/status': status,
-      'video/time': time,
-      'video/updatedAt': Date.now(),
-      'video/by': clientId
-    });
-  }
-
-  // ---------- home UI ----------
-  $('customCodeInput').addEventListener('input', (e)=>{ e.target.value = sanitizeCode(e.target.value, 12); });
-  $('customCodeInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') $('btnCreateRoom').click(); });
-  $('joinCodeInput').addEventListener('input', (e)=>{ e.target.value = sanitizeCode(e.target.value, 12); });
-  $('joinCodeInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') joinRoom(); });
-
-  $('btnCreateRoom').addEventListener('click', ()=>{
-    $('homeError').textContent = '';
-    const customCode = sanitizeCode($('customCodeInput').value.trim(), 12);
-    if(customCode && customCode.length < 4){
-      $('homeError').textContent = 'ルームコードは4文字以上にしてください';
-      return;
-    }
-    $('btnCreateRoom').disabled = true;
-
-    function createWithId(roomId){
-      db.ref('rooms/' + roomId).set({
-        type: null,
-        createdAt: Date.now(),
-        hostId: clientId
-      }).then(()=>{
-        $('btnCreateRoom').disabled = false;
-        enterRoom(roomId);
-      }).catch(err=>{
-        $('btnCreateRoom').disabled = false;
-        $('homeError').textContent = 'ルームを作成できませんでした: ' + err.message;
-      });
-    }
-
-    if(customCode){
-      db.ref('rooms/' + customCode).once('value').then(snap=>{
-        if(snap.exists()){
-          $('btnCreateRoom').disabled = false;
-          $('homeError').textContent = 'そのルームコードはすでに使われています';
-          return;
-        }
-        createWithId(customCode);
-      }).catch(err=>{
-        $('btnCreateRoom').disabled = false;
-        $('homeError').textContent = '確認できませんでした: ' + err.message;
-      });
-    }else{
-      createWithId(makeRoomCode());
-    }
-  });
-
-  $('btnJoinRoom').addEventListener('click', joinRoom);
-  function joinRoom(){
-    const code = sanitizeCode($('joinCodeInput').value.trim(), 12);
-    $('homeError').textContent = '';
-    if(code.length < 4){ $('homeError').textContent = 'ルームコードを入力してください'; return; }
-    db.ref('rooms/' + code).once('value').then(snap=>{
-      if(!snap.exists()){ $('homeError').textContent = 'そのルームは見つかりませんでした'; return; }
-      enterRoom(code);
-    }).catch(err=>{
-      $('homeError').textContent = '参加できませんでした: ' + err.message;
-    });
-  }
-
-  // ---------- room UI ----------
-  $('btnLeaveRoom').addEventListener('click', goHome);
-
-  $('btnCopyCode').addEventListener('click', ()=>{
-    if(!currentRoomId) return;
-    const done = ()=> showToast('コピーしました');
-    if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(currentRoomId).then(done).catch(done);
-    else done();
-  });
-
-  $('btnLoadVideo').addEventListener('click', ()=>{
-    if(!isHost()){ showToast('ホストだけが操作できます'); return; }
-    const raw = $('videoUrlInput').value;
-    const id = extractVideoId(raw);
-    if(!id){
-      showToast('YouTubeのURLを確認できませんでした。リンクをそのまま貼り付けてみてください');
-      return;
-    }
-    if(!roomRef) return;
-    roomRef.update({
-      type: 'video',
-      'video/videoId': id,
-      'video/status': 'paused',
-      'video/time': 0,
-      'video/updatedAt': Date.now(),
-      'video/by': clientId
-    });
-    $('videoUrlInput').value = '';
-  });
-  $('videoUrlInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') $('btnLoadVideo').click(); });
-
-  let selectedEngine = 'ddg';
-  document.querySelectorAll('.engine-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      document.querySelectorAll('.engine-btn').forEach(b=> b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedEngine = btn.dataset.engine;
-    });
-  });
-
-  $('btnLoadSite').addEventListener('click', ()=>{
-    if(!isHost()){ showToast('ホストだけが操作できます'); return; }
-    const raw = $('siteUrlInput').value;
-    const url = resolveWebInput(raw, selectedEngine);
-    if(!url){ showToast('検索キーワードかURLを入力してください'); return; }
-    if(!roomRef) return;
-    roomRef.update({
-      type: 'site',
-      'site/url': url,
-      'site/updatedAt': Date.now(),
-      'site/by': clientId
-    });
-    $('siteUrlInput').value = '';
-  });
-  $('siteUrlInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') $('btnLoadSite').click(); });
-
-  $('btnDeleteRoom').addEventListener('click', ()=>{
-    if(!currentRoomId) return;
-    const ok = confirm('ルーム「' + currentRoomId + '」を削除します。よろしいですか？');
-    if(!ok) return;
-    const idToDelete = currentRoomId;
-    db.ref('rooms/' + idToDelete).remove().then(()=>{
-      showToast('ルームを削除しました');
-      goHome();
-    }).catch(err=>{
-      showToast('削除できませんでした: ' + err.message);
-    });
-  });
-
-})();
+// ================= 起動 =================
+startLobby();
+window.addEventListener('beforeunload', () => { try { if (S.me) S.me.remove(); } catch (e) {} });
 </script>
 </body>
 </html>
