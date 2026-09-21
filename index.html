@@ -83,6 +83,15 @@
   .status{font-size:13px;color:var(--mute);margin-left:4px}
   .status.on{color:var(--live)}
 
+  .link-form{display:flex;gap:8px}
+  .link-form input{flex:1;min-width:0}
+  .link-card{display:flex;align-items:center;gap:12px;background:var(--panel);
+    border:1px solid var(--accent);border-radius:12px;padding:10px 12px}
+  .lc-text{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px}
+  #lcBy{font-size:12px;color:var(--mute)}
+  #lcUrl{font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  a.btn{display:inline-block;text-decoration:none;text-align:center}
+
   .seats{display:flex;flex-wrap:wrap;gap:8px}
   .seat{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);
     border-radius:999px;padding:4px 12px 4px 4px;font-size:13px;max-width:100%}
@@ -122,7 +131,7 @@
 <div id="lobby">
   <div class="lobby-card">
     <h1>ブラウザ同時視聴</h1>
-    <p class="sub">ブラウザの画面を共有して、同じ画面をみんなで見られます。共有するのは別のブラウザのウィンドウでもOK。</p>
+    <p class="sub">URLや検索ワードを全員に送って同じページを開けます。PCなら画面共有もできます。スマホだけでもOK。</p>
 
     <form id="joinForm" autocomplete="off">
       <div class="field">
@@ -158,6 +167,15 @@
 
   <div class="layout">
     <section class="main-col">
+      <form class="link-form" id="linkForm" autocomplete="off">
+        <input id="linkInput" type="text" inputmode="url" placeholder="URLか検索ワード（例：東京 天気）">
+        <button class="btn" type="submit">みんなに送る</button>
+      </form>
+      <div class="link-card hidden" id="linkCard">
+        <div class="lc-text"><span id="lcBy"></span><span id="lcUrl"></span></div>
+        <a class="btn" id="lcOpen" target="_blank" rel="noopener noreferrer">開く</a>
+      </div>
+
       <div class="stage" id="stage">
         <video id="remote" autoplay playsinline></video>
         <div class="stage-msg" id="stageMsg"></div>
@@ -173,9 +191,10 @@
       <div class="seats" id="seats"></div>
 
       <p class="info">
-        見せたい側が「画面を共有する」を押し、ブラウザのダイアログで<b>タブ</b>か<b>ウィンドウ</b>を選びます。
-        別のブラウザで開いたGoogleを見せたいときは「ウィンドウ」から選んでください。
-        タブ共有なら「タブの音声も共有」にチェックで音も届きます。共有できるのは同時に1人です。
+        <b>スマホだけの場合</b>：上の欄にURLか検索ワードを入れて「みんなに送る」を押すと、全員に「開く」ボタンが出ます。
+        各自が自分のブラウザで同じページ（検索ワードならGoogle検索結果）を開けます。<br>
+        <b>PCから画面を見せる場合</b>：「画面を共有する」を押し、タブかウィンドウ（別のブラウザも可）を選びます。
+        スマホは見る側として参加できます。共有できるのは同時に1人です。
       </p>
     </section>
 
@@ -308,6 +327,7 @@ async function joinRoom() {
   $('#lobby').classList.add('hidden');
   $('#roomView').classList.remove('hidden');
   $('#log').innerHTML = '';
+  S.linkSeen = false; S.linkAt = null; $('#linkCard').classList.add('hidden'); $('#linkInput').value = '';
   showIdle(); updateStatus();
 
   let seenMeta = false;
@@ -317,6 +337,7 @@ async function joinRoom() {
   });
   listen(ref.child('members'), 'value', s => onMembers(s.val() || {}));
   listen(ref.child('host'), 'value', s => onHost(s.val()));
+  listen(ref.child('link'), 'value', s => onLink(s.val()));
   listen(ref.child('rtc/' + uid + '/offer'), 'value', s => { S.lastOffer = s.val(); tryOffer(); });
   listen(ref.child('rtc/' + uid + '/hc'), 'child_added', s => onHostCandidate(s.val()));
   listen(ref.child('chat').limitToLast(60), 'child_added', s => addChat(s.val()));
@@ -396,7 +417,8 @@ function showIdle() {
   const v = $('#remote');
   if (!S.localStream) { v.srcObject = null; }
   $('#stage').classList.remove('live');
-  setStage('まだ誰も共有していません。「画面を共有する」を押すと、ここに表示されます');
+  setStage(CAN_SHARE ? 'まだ誰も画面を共有していません。「画面を共有する」を押すと、ここに表示されます'
+                     : 'PCの誰かが画面共有を始めると、ここに表示されます。リンクを送るなら上の欄へ');
 }
 
 function updateStatus() {
@@ -414,6 +436,7 @@ function updateStatus() {
     btn.textContent = '画面を共有する'; btn.className = 'btn'; btn.disabled = false;
     st.textContent = '';
   }
+  btn.classList.toggle('hidden', !CAN_SHARE);      // スマホなど画面共有できない端末では隠す
   updateSoundBtn();
 }
 
@@ -429,6 +452,43 @@ $('#soundBtn').onclick = async () => {
   updateSoundBtn();
 };
 $('#fsBtn').onclick = () => { const s = $('#stage'); (s.requestFullscreen || s.webkitRequestFullscreen || (() => {})).call(s); };
+
+// ================= リンク送信（スマホ向け） =================
+const CAN_SHARE = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+
+function safeUrl(str) {
+  try { const u = new URL(str); return (u.protocol === 'https:' || u.protocol === 'http:') ? u : null; }
+  catch (e) { return null; }
+}
+
+$('#linkForm').addEventListener('submit', e => {
+  e.preventDefault();
+  if (!S.ref) return;
+  const text = $('#linkInput').value.trim().slice(0, 200);
+  if (!text) return;
+  let url;
+  if (/^https?:\/\//i.test(text)) url = text;
+  else if (/^[\w-]+(\.[\w-]+)+([\/?#]\S*)?$/.test(text)) url = 'https://' + text;
+  else url = 'https://www.google.com/search?q=' + encodeURIComponent(text);   // 検索ワードはGoogle検索へ
+  if (!safeUrl(url)) { toast('URLを確認してください'); return; }
+  S.ref.child('link').set({ url, text, by: S.name, byId: uid, at: TS })
+    .then(() => { $('#linkInput').value = ''; }).catch(dbError);
+});
+
+function onLink(v) {
+  const card = $('#linkCard');
+  const u = v && safeUrl(v.url);
+  if (!u) { card.classList.add('hidden'); S.linkAt = null; S.linkSeen = true; return; }
+  $('#lcBy').textContent = (v.by || '誰か') + 'さんが送信';
+  $('#lcUrl').textContent = v.text || u.hostname;
+  $('#lcOpen').href = u.href;
+  card.classList.remove('hidden');
+  if (S.linkSeen && v.byId !== uid && v.at !== S.linkAt) {
+    toast((v.by || '誰か') + 'さんがリンクを送りました');
+    try { navigator.vibrate && navigator.vibrate(120); } catch (e) {}
+  }
+  S.linkSeen = true; S.linkAt = v.at;
+}
 
 // ================= 共有する側 =================
 $('#shareBtn').onclick = () => { if (S.localStream) stopShare(); else startShare(); };
