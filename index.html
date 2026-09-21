@@ -250,6 +250,7 @@
       <div class="engine-toggle">
         <button type="button" class="engine-btn active" id="engineDdg" data-engine="ddg">DuckDuckGo</button>
         <button type="button" class="engine-btn" id="engineGoogle" data-engine="google">Google</button>
+        <button type="button" class="engine-btn" id="engineGoogleImages" data-engine="google-images">Google画像</button>
       </div>
       <div class="load-row">
         <input type="text" id="siteUrlInput" placeholder="検索キーワード or サイトのURL">
@@ -410,9 +411,9 @@
       try{ new URL(s); result = s; }catch(e){ result = null; }
     }
     if(!result){
-      result = (engine === 'google')
-        ? 'https://www.google.com/search?q=' + encodeURIComponent(s)
-        : 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(s);
+      if(engine === 'google') result = 'https://www.google.com/search?q=' + encodeURIComponent(s);
+      else if(engine === 'google-images') result = 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(s);
+      else result = 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(s);
     }
     return ensureGoogleEmbeddable(result);
   }
